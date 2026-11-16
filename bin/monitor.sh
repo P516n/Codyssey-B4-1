@@ -82,17 +82,31 @@ check_firewall() {
     local fw_active=false
     local fw_name=""
 
-    # Check UFW
-    if command -v ufw >/dev/null 2>&1; then
-        if ufw status 2>/dev/null | grep -qi "Status: active"; then
+    # 1) Check via systemctl (works for non-root users without sudo)
+    if command -v systemctl >/dev/null 2>&1; then
+        if systemctl is-active --quiet ufw 2>/dev/null; then
+            fw_active=true
+            fw_name="UFW"
+        elif systemctl is-active --quiet firewalld 2>/dev/null; then
+            fw_active=true
+            fw_name="firewalld"
+        fi
+    fi
+
+    # 2) Check via ufw.conf (readable by all users: /etc/ufw/ufw.conf)
+    if [ "$fw_active" = false ] && [ -f /etc/ufw/ufw.conf ]; then
+        if grep -qiE "^ENABLED=(yes|true)" /etc/ufw/ufw.conf 2>/dev/null; then
             fw_active=true
             fw_name="UFW"
         fi
     fi
 
-    # Check firewalld if UFW is not active
-    if [ "$fw_active" = false ] && command -v firewall-cmd >/dev/null 2>&1; then
-        if firewall-cmd --state 2>/dev/null | grep -qi "running"; then
+    # 3) Check direct command if available
+    if [ "$fw_active" = false ]; then
+        if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -qi "Status: active"; then
+            fw_active=true
+            fw_name="UFW"
+        elif command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state 2>/dev/null | grep -qi "running"; then
             fw_active=true
             fw_name="firewalld"
         fi
@@ -143,12 +157,23 @@ generate_statistics() {
             mem_max_time = ""; mem_min_time = "";
         }
         {
-            # Match line format: [YYYY-MM-DD HH:MM:SS] PID:... CPU:..% MEM:..% DISK_USED:..%
-            match($0, /\[([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})\] PID:[0-9]+ CPU:([0-9.]+)% MEM:([0-9.]+)% DISK_USED:([0-9]+)%/, arr)
-            if (arr[1] != "") {
-                ts = arr[1]
-                c = arr[2] + 0.0
-                m = arr[3] + 0.0
+            # POSIX-compatible line parsing (compatible with mawk, gawk, and original-awk)
+            # Match format: [YYYY-MM-DD HH:MM:SS] PID:... CPU:..% MEM:..% DISK_USED:..%
+            if ($0 ~ /^\[[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\] PID:[0-9]+/) {
+                # Extract timestamp
+                raw_d = substr($1, 2)
+                raw_t = substr($2, 1, length($2) - 1)
+                ts = raw_d " " raw_t
+
+                # Extract CPU
+                c_str = $4
+                gsub(/CPU:|%/, "", c_str)
+                c = c_str + 0.0
+
+                # Extract MEM
+                m_str = $5
+                gsub(/MEM:|%/, "", m_str)
+                m = m_str + 0.0
 
                 cpu_sum += c
                 mem_sum += m

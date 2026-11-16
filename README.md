@@ -99,7 +99,9 @@ bash setup_environment.sh
 su - agent-admin
 
 # 앱 실행 (Boot Sequence 5단계 [OK] 및 "Agent READY" 확인)
-./agent-app
+cd ~/agent-app && ./agent-app
+# 또는 어느 경로에서든 바로 실행:
+agent-app
 ```
 
 #### 5) 모니터링 실행 및 로그 검증 (Terminal 2)
@@ -151,7 +153,9 @@ sudo bash setup_environment.sh
 su - agent-admin
 
 # 앱 실행 (Boot Sequence 5단계 [OK] 및 "Agent READY" 확인)
-./agent-app
+cd ~/agent-app && ./agent-app
+# 또는 어느 경로에서든 바로 실행:
+agent-app
 ```
 
 #### 3단계: 모니터링 스크립트 수동 실행 및 확인 (Terminal 2)

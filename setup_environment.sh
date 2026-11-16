@@ -115,6 +115,10 @@ mkdir -p "${AGENT_HOME}/api_keys"
 mkdir -p "${AGENT_HOME}/bin"
 mkdir -p "${AGENT_LOG_DIR}"
 
+# Ensure ownership and permissions for AGENT_HOME itself
+chown agent-admin:agent-core "${AGENT_HOME}"
+chmod 755 "${AGENT_HOME}"
+
 # Set permissions according to policy:
 # 1) upload_files: group=agent-common, R/W
 chown -R agent-admin:agent-common "${AGENT_HOME}/upload_files"
@@ -129,11 +133,12 @@ chown -R agent-admin:agent-core "${AGENT_LOG_DIR}"
 chmod 2770 "${AGENT_LOG_DIR}"
 
 # 4) Key File Creation
-KEY_FILE="${AGENT_HOME}/api_keys/t_secret.key"
-echo "agent_api_key_test" > "$KEY_FILE"
-chown agent-admin:agent-core "$KEY_FILE"
-chmod 660 "$KEY_FILE"
-echo "  -> Secret key file created: $KEY_FILE"
+# Binary expects 'secret.key', while specification mentions 't_secret.key'
+echo "agent_api_key_test" > "${AGENT_HOME}/api_keys/secret.key"
+cp -f "${AGENT_HOME}/api_keys/secret.key" "${AGENT_HOME}/api_keys/t_secret.key"
+chown -R agent-admin:agent-core "${AGENT_HOME}/api_keys"
+chmod 660 "${AGENT_HOME}/api_keys/secret.key" "${AGENT_HOME}/api_keys/t_secret.key"
+echo "  -> Secret key files created: secret.key & t_secret.key"
 
 # ------------------------------------------------------------------------------
 # 4. Copying Scripts and Setting Execution Permissions
@@ -175,9 +180,9 @@ cat << 'EOF' > "$ENV_PROFILE"
 export AGENT_HOME=/home/agent-admin/agent-app
 export AGENT_PORT=15034
 export AGENT_UPLOAD_DIR=$AGENT_HOME/upload_files
-export AGENT_KEY_PATH=$AGENT_HOME/api_keys/t_secret.key
+export AGENT_KEY_PATH=$AGENT_HOME/api_keys
 export AGENT_LOG_DIR=/var/log/agent-app
-export PATH=$PATH:$AGENT_HOME/bin
+export PATH=$PATH:$AGENT_HOME/bin:$AGENT_HOME
 EOF
 chmod 644 "$ENV_PROFILE"
 echo "  -> Environment profile created at ${ENV_PROFILE}"
@@ -214,8 +219,9 @@ if [ -n "$SRC_BINARY" ]; then
     chmod 755 "${AGENT_HOME}/agent-app"
     chown agent-admin:agent-core "${AGENT_HOME}/agent-app"
     
-    # Also create a symlink in AGENT_HOME/bin for PATH convenience
+    # Also create symlinks in AGENT_HOME/bin and /usr/local/bin for PATH convenience
     ln -sf "${AGENT_HOME}/agent-app" "${AGENT_HOME}/bin/agent-app"
+    ln -sf "${AGENT_HOME}/agent-app" "/usr/local/bin/agent-app"
     echo "  -> Deployed agent-app binary (${ARCH}) from ${SRC_BINARY} to ${AGENT_HOME}/agent-app"
 else
     echo "  [WARNING] Target binary for architecture (${ARCH}) not found in ${REPO_ROOT}/bin/!"
@@ -227,7 +233,7 @@ echo " Setup Completed Successfully!"
 echo "======================================================================"
 echo "Next Steps to verify:"
 echo " 1. Switch to user: su - agent-admin"
-echo " 2. Run the agent app: ./agent-app"
+echo " 2. Run the agent app: cd ~/agent-app && ./agent-app  (or simply run: agent-app)"
 echo " 3. Verify in another terminal: /home/agent-admin/agent-app/bin/monitor.sh"
 echo " 4. Check monitor log: tail -f /var/log/agent-app/monitor.log"
 echo "======================================================================"

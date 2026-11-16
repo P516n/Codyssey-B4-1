@@ -84,19 +84,32 @@ awk -v start="$START_TIME" -v end="$END_TIME" '
         disk_max_time = ""; disk_min_time = "";
     }
     {
-        # Expected log format:
-        # [YYYY-MM-DD HH:MM:SS] PID:XXXX CPU:XX.X% MEM:XX.X% DISK_USED:XX%
-        match($0, /\[([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})\] PID:[0-9]+ CPU:([0-9.]+)% MEM:([0-9.]+)% DISK_USED:([0-9]+)%/, arr)
-        
-        if (arr[1] != "") {
-            ts = arr[1]
-            c = arr[2] + 0.0
-            m = arr[3] + 0.0
-            d = arr[4] + 0.0
+        # POSIX-compatible line parsing (mawk, gawk, original-awk compatible)
+        # Expected log format: [YYYY-MM-DD HH:MM:SS] PID:XXXX CPU:XX.X% MEM:XX.X% DISK_USED:XX%
+        if ($0 ~ /^\[[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\] PID:[0-9]+/) {
+            # Extract timestamp
+            raw_d = substr($1, 2)
+            raw_t = substr($2, 1, length($2) - 1)
+            ts = raw_d " " raw_t
 
             # Time range filter (lexicographical comparison works for ISO timestamps)
             if (start != "" && ts < start) next;
             if (end != "" && ts > end) next;
+
+            # Extract CPU
+            c_str = $4
+            gsub(/CPU:|%/, "", c_str)
+            c = c_str + 0.0
+
+            # Extract MEM
+            m_str = $5
+            gsub(/MEM:|%/, "", m_str)
+            m = m_str + 0.0
+
+            # Extract DISK
+            d_str = $6
+            gsub(/DISK_USED:|%/, "", d_str)
+            d = d_str + 0.0
 
             cpu_sum += c
             mem_sum += m
