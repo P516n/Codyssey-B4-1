@@ -114,6 +114,7 @@ mkdir -p "${AGENT_HOME}/upload_files"
 mkdir -p "${AGENT_HOME}/api_keys"
 mkdir -p "${AGENT_HOME}/bin"
 mkdir -p "${AGENT_LOG_DIR}"
+mkdir -p "/var/log/monitor/agent-app/archive"
 
 # Ensure ownership and permissions for AGENT_HOME itself
 chown agent-admin:agent-core "${AGENT_HOME}"
@@ -128,9 +129,12 @@ chmod 2775 "${AGENT_HOME}/upload_files"
 chown -R agent-admin:agent-core "${AGENT_HOME}/api_keys"
 chmod 2770 "${AGENT_HOME}/api_keys"
 
-# 3) /var/log/agent-app: group=agent-core ONLY, R/W
+# 3) /var/log/agent-app & /var/log/monitor: group=agent-core ONLY, R/W
 chown -R agent-admin:agent-core "${AGENT_LOG_DIR}"
 chmod 2770 "${AGENT_LOG_DIR}"
+
+chown -R agent-admin:agent-core "/var/log/monitor"
+chmod -R 2770 "/var/log/monitor"
 
 # 4) Key File Creation
 # Binary expects 'secret.key', while specification mentions 't_secret.key'

@@ -36,15 +36,18 @@ fi
 # 2. Ensure Archive Directory Exists
 if [ ! -d "$ARCHIVE_DIR" ]; then
     echo "[INFO] Archive directory not found. Creating: ${ARCHIVE_DIR}"
-    mkdir -p "$ARCHIVE_DIR" 2>/dev/null || {
-        echo "[ERROR] Failed to create archive directory: ${ARCHIVE_DIR}" >&2
-        exit 1
-    }
+    if ! mkdir -p "$ARCHIVE_DIR" 2>/dev/null; then
+        echo "[WARNING] Insufficient permissions to create archive directory: ${ARCHIVE_DIR}"
+        echo "          Please ensure the directory is created by root with proper ownership (agent-admin:agent-core)."
+        echo "[INFO] Safely exiting according to exception handling policy."
+        exit 0
+    fi
 fi
 
 if [ ! -w "$ARCHIVE_DIR" ]; then
-    echo "[ERROR] Archive directory is not writable: ${ARCHIVE_DIR}" >&2
-    exit 1
+    echo "[WARNING] Archive directory is not writable by current user: ${ARCHIVE_DIR}"
+    echo "[INFO] Safely exiting according to exception handling policy."
+    exit 0
 fi
 
 # 3. Step 1: Find and Compress logs older than 7 days
